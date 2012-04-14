@@ -7,8 +7,8 @@ NuxBridge is a plugin that link your forum's ranks and Permissions (It only work
 Installation
 ------------
 
-* First, you need the Permissions (3) plugin ([here](http://forums.bukkit.org/threads/admn-dev-permissions-3-1-6-the-plugin-of-tomorrow-935.18430/)).
-* Download the latest jar [here](https://github.com/N4th4/NuxBridge/downloads).
+* First, you need the bPermissions (3) plugin ([here](http://dev.bukkit.org/server-mods/bpermissions/)).
+* Download the latest jar [here](https://github.com/NuxosMinecraft/NuxBridge/downloads).
 * Copy the downloaded jar file into the plugins folder and rename it to "NuxBridge.jar".
 
 Configuration
