@@ -6,7 +6,7 @@
     <artifactId>nuxbridge</artifactId>
     <version>dev-SNAPSHOT</version>
     <name>NuxBridge</name>
-    <url>https://github.com/N4th4</url>
+    <url>https://github.com/NuxosMinecraft</url>
     <description>Bridge permissions between a forum and the game.</description>
 
     <properties>
@@ -24,9 +24,9 @@
 
     <!-- Source code -->
     <scm>
-        <developerConnection>scm:git:git@github.com:N4th4/${project.name}.git</developerConnection>
-        <connection>scm:git:git://github.com/N4th4/${project.name}.git</connection>
-        <url>https://github.com/N4th4/${project.name}</url>
+        <developerConnection>scm:git:git@github.com:NuxosMinecraft/${project.name}.git</developerConnection>
+        <connection>scm:git:git://github.com/NuxosMinecraft/${project.name}.git</connection>
+        <url>https://github.com/NuxosMinecraft/${project.name}</url>
     </scm>
 
     <!-- Dependencies -->
