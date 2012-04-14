@@ -1,4 +1,5 @@
 name: NuxBridge
-version: 1.2
+version: 1.4
 author: N4th4
+authors: [N4th4, Munrek]
 main: net.n4th4.bukkit.nuxbridge.NuxBridge
