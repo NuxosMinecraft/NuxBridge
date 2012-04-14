@@ -4,28 +4,41 @@ import java.sql.ResultSet;
 import java.sql.Statement;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.util.List;
+import java.util.logging.Logger;
 
-import org.bukkit.command.ConsoleCommandSender;
+import org.bukkit.Server;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.event.player.PlayerListener;
+import org.bukkit.configuration.file.FileConfiguration;
 
-public class NBPlayerListener extends PlayerListener {
-    private Connection     conn;
-    public final NuxBridge plugin;
+import net.n4th4.bukkit.nuxbridge.NuxBridge;
 
-    public NBPlayerListener(NuxBridge instance) {
-        plugin = instance;
+public class NBPlayerListener implements Listener {
+    public Logger log;
+    private Connection conn;
+    private FileConfiguration config;
+    public NuxBridge plugin;
+    private Server serv;
+
+    public NBPlayerListener(NuxBridge plugin) {
+    	plugin.getServer().getPluginManager().registerEvents(this, plugin);
+    	log = plugin.getServer().getLogger();
+    	config = plugin.getConfig();
+    	serv = plugin.getServer();
     }
 
+    @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
 
-        plugin.log.info("[NuxBridge] " + player.getName() + " is login in ...");
-
+        log.info("[NuxBridge] " + player.getName() + " is login in ...");
+        
         Statement state;
         try {
-            conn = DriverManager.getConnection("jdbc:" + plugin.config.getString("url"), plugin.config.getString("user"), plugin.config.getString("passwd"));
+            conn = DriverManager.getConnection("jdbc:" + config.getString("url"), config.getString("user"), config.getString("passwd"));
             conn.setAutoCommit(false);
             state = conn.createStatement();
             ResultSet result = state.executeQuery("SELECT id_group FROM smf_members WHERE member_name='" + player.getName() + "'");
@@ -33,20 +46,26 @@ public class NBPlayerListener extends PlayerListener {
             int id_group;
 
             if (result.getRow() == 0) {
-                id_group = plugin.config.getInt("default_id", 0);
+                id_group = config.getInt("default_id", 0);
             } else {
                 id_group = result.getInt("id_group");
             }
 
-            String group = plugin.config.getString("groups." + id_group);
-
-            plugin.log.info("[NuxBridge] " + player.getName() + "'s group is " + group);
-
-            plugin.getServer().dispatchCommand(plugin.getServer().getConsoleSender(), "permissions player setgroup " + player.getName() + " " + group);
+            String group = config.getString("groups." + id_group);
+            log.info("[NuxBridge] " + player.getName() + "'s group is " + group);
+            List<String> worlds = config.getStringList("worlds");
+           
+            for (String world : worlds) {
+            	
+                serv.dispatchCommand(serv.getConsoleSender(), "world " + world);
+                serv.dispatchCommand(serv.getConsoleSender(), "user " + player.getName());
+                serv.dispatchCommand(serv.getConsoleSender(), "user setgroup " + group);
+              
+            }
 
             conn.close();
 
-            plugin.log.info("[NuxBridge] " + player.getName() + " was succesfully added in group " + group);
+            log.info("[NuxBridge] " + player.getName() + " was succesfully added in group " + group);
         } catch (Exception e) {
             e.printStackTrace();
         }
