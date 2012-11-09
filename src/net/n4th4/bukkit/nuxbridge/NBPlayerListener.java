@@ -19,74 +19,95 @@
  
 package net.n4th4.bukkit.nuxbridge;
 
-import java.sql.ResultSet;
-import java.sql.Statement;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.net.URL;
+import java.nio.charset.Charset;
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.util.List;
+import java.sql.ResultSet;
+import java.sql.Statement;
 import java.util.logging.Logger;
-
 import org.bukkit.Server;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.configuration.file.FileConfiguration;
-
-import net.n4th4.bukkit.nuxbridge.NuxBridge;
+import org.bukkit.plugin.PluginManager;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 public class NBPlayerListener implements Listener {
-    public Logger log;
-    private Connection conn;
-    private FileConfiguration config;
-    public NuxBridge plugin;
-    private Server serv;
+ public Logger log;
+	private Connection conn;
+	private FileConfiguration config;
+	public NuxBridge plugin;
+	private Server serv;
 
-    public NBPlayerListener(NuxBridge plugin) {
-    	plugin.getServer().getPluginManager().registerEvents(this, plugin);
-    	log = plugin.getServer().getLogger();
-    	config = plugin.getConfig();
-    	serv = plugin.getServer();
-    }
+	public NBPlayerListener(NuxBridge plugin) {
+		plugin.getServer().getPluginManager().registerEvents(this, plugin);
+		this.log = plugin.getServer().getLogger();
+		this.config = plugin.getConfig();
+		this.serv = plugin.getServer();
+	}
+	
+	private static String readAll(Reader rd) throws IOException {
+	    StringBuilder sb = new StringBuilder();
+	    int cp;
+	    while ((cp = rd.read()) != -1) {
+	      sb.append((char) cp);
+	    }
+	    return sb.toString();
+	 }
 
-    @EventHandler
-    public void onPlayerJoin(PlayerJoinEvent event) {
-        Player player = event.getPlayer();
+	@EventHandler
+	public void onPlayerJoin(PlayerJoinEvent event) throws IOException {
+		
+		Player player = event.getPlayer();
 
-        log.info("[NuxBridge] " + player.getName() + " is login in ...");
-        
-        Statement state;
-        try {
-            conn = DriverManager.getConnection("jdbc:" + config.getString("url"), config.getString("user"), config.getString("passwd"));
-            conn.setAutoCommit(false);
-            state = conn.createStatement();
-            ResultSet result = state.executeQuery("SELECT id_group FROM smf_members WHERE member_name='" + player.getName() + "'");
-            result.last();
-            int id_group;
+		this.log.info("[NuxBridge] " + player.getName() + " is login in ...");
+		int id_group = this.config.getInt(this.config.getString("type") + "_default_id", 0);
+		
+		try {
+			// dans le cas où on utilise mysql
+			if (this.config.getString("type").equals("mysql")) {
+				this.conn = DriverManager.getConnection("jdbc:" + this.config.getString("mysql"), this.config.getString("user"), this.config.getString("passwd"));
+				this.conn.setAutoCommit(false);
+				Statement state = this.conn.createStatement();
+				ResultSet result = state.executeQuery("SELECT id_group FROM smf_members WHERE member_name='"+ player.getName() + "'");
+				result.last();
+				if (result.getRow() != 0) {
+					id_group = result.getInt("id_group");
+				}
+				this.conn.close();
+			// sinon, on utilise json
+			} else if(this.config.getString("type").equals("json")) {
+				JSONObject jsonfinal;
+				InputStream is = new URL(this.config.getString("json") + player.getName() + ".json").openStream();
+			    try {
+			      BufferedReader rd = new BufferedReader(new InputStreamReader(is, Charset.forName("UTF-8")));
+			      String jsonText = readAll(rd);
+			      jsonfinal = new JSONObject(jsonText);
+			      id_group = (Integer) jsonfinal.get("role");
+			    } finally {
+			      is.close();
+			    }
+			}
+			String group = this.config.getString(this.config.getString("type") + "_groups." + id_group);
+			this.log.info("[NuxBridge] " + player.getName() + "'s group is " + group);
 
-            if (result.getRow() == 0) {
-                id_group = config.getInt("default_id", 0);
-            } else {
-                id_group = result.getInt("id_group");
-            }
-
-            String group = config.getString("groups." + id_group);
-            log.info("[NuxBridge] " + player.getName() + "'s group is " + group);
-            List<String> worlds = config.getStringList("worlds");
-           
-            for (String world : worlds) {
-            	
-                serv.dispatchCommand(serv.getConsoleSender(), "world " + world);
-                serv.dispatchCommand(serv.getConsoleSender(), "user " + player.getName());
-                serv.dispatchCommand(serv.getConsoleSender(), "user setgroup " + group);
-              
-            }
-
-            conn.close();
-
-            log.info("[NuxBridge] " + player.getName() + " was succesfully added in group " + group);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
+			this.serv.dispatchCommand(this.serv.getConsoleSender(), "pex user " + player.getName() + " group set " + group);
+	
+			this.log.info("[NuxBridge] " + player.getName()
+					+ " was succesfully added in group " + group);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
 }
