@@ -16,7 +16,7 @@
  *  with this program; if not, write to the Free Software Foundation, Inc.,
  *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
- 
+
 package net.n4th4.bukkit.nuxbridge;
 
 import java.io.BufferedReader;
@@ -26,11 +26,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.logging.Logger;
 import org.bukkit.Server;
@@ -42,9 +44,11 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.PluginManager;
 import org.json.JSONException;
 import org.json.JSONObject;
+import net.n4th4.bukkit.nuxbridge.JsonProceed;
+import net.n4th4.bukkit.nuxbridge.MysqlProceed;
 
 public class NBPlayerListener implements Listener {
- public Logger log;
+	public Logger log;
 	private Connection conn;
 	private FileConfiguration config;
 	public NuxBridge plugin;
@@ -56,58 +60,67 @@ public class NBPlayerListener implements Listener {
 		this.config = plugin.getConfig();
 		this.serv = plugin.getServer();
 	}
-	
-	private static String readAll(Reader rd) throws IOException {
-	    StringBuilder sb = new StringBuilder();
-	    int cp;
-	    while ((cp = rd.read()) != -1) {
-	      sb.append((char) cp);
-	    }
-	    return sb.toString();
-	 }
 
 	@EventHandler
 	public void onPlayerJoin(PlayerJoinEvent event) throws IOException {
-		
-		Player player = event.getPlayer();
 
+		Player player = event.getPlayer();
 		this.log.info("[NuxBridge] " + player.getName() + " is login in ...");
-		int id_group = this.config.getInt(this.config.getString("type") + "_default_id", 0);
-		
+
 		try {
 			// dans le cas où on utilise mysql
 			if (this.config.getString("type").equals("mysql")) {
-				this.conn = DriverManager.getConnection("jdbc:" + this.config.getString("mysql"), this.config.getString("user"), this.config.getString("passwd"));
-				this.conn.setAutoCommit(false);
-				Statement state = this.conn.createStatement();
-				ResultSet result = state.executeQuery("SELECT id_group FROM smf_members WHERE member_name='"+ player.getName() + "'");
-				result.last();
-				if (result.getRow() != 0) {
-					id_group = result.getInt("id_group");
-				}
-				this.conn.close();
-			// sinon, on utilise json
-			} else if(this.config.getString("type").equals("json")) {
-				JSONObject jsonfinal;
-				InputStream is = new URL(this.config.getString("json") + player.getName() + ".json").openStream();
-			    try {
-			      BufferedReader rd = new BufferedReader(new InputStreamReader(is, Charset.forName("UTF-8")));
-			      String jsonText = readAll(rd);
-			      jsonfinal = new JSONObject(jsonText);
-			      id_group = (Integer) jsonfinal.get("role");
-			    } finally {
-			      is.close();
-			    }
+				appendMysqlThread(player.getName());
+				// sinon, on utilise json
+			} else if (this.config.getString("type").equals("json")) {
+				appendJsonThread(player.getName());
 			}
-			String group = this.config.getString(this.config.getString("type") + "_groups." + id_group);
-			this.log.info("[NuxBridge] " + player.getName() + "'s group is " + group);
 
-			this.serv.dispatchCommand(this.serv.getConsoleSender(), "pex user " + player.getName() + " group set " + group);
-	
-			this.log.info("[NuxBridge] " + player.getName()
-					+ " was succesfully added in group " + group);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+	}
+
+	public void appendMysqlThread(String player) {
+		// TODO : IMPLEMENT MsqylProceed WITH THIS CODE
+		/*
+		 * Thread t = new Thread(new MysqlProceed()); t.start();
+		 * 
+		 * int id_group;
+		 * 
+		 * this.conn = DriverManager.getConnection("jdbc:" +
+		 * this.config.getString("mysql"), this.config.getString("user"),
+		 * this.config.getString("passwd")); this.conn.setAutoCommit(false);
+		 * Statement state = this.conn.createStatement(); ResultSet result =
+		 * state
+		 * .executeQuery("SELECT id_group FROM smf_members WHERE member_name='"
+		 * + player + "'"); result.last(); if (result.getRow() != 0) { id_group
+		 * = result.getInt("id_group"); } this.conn.close();
+		 */
+	}
+
+	public void appendJsonThread(String player) throws MalformedURLException,
+			IOException, JSONException {
+
+		String URL = this.config.getString(this.config.getString("type"));
+		Thread t = new Thread(new JsonProceed(player, URL, this));
+		t.start();
+
+	}
+
+	public void setPerms(String player, String type, int id) {
+
+		String group = this.config.getString(this.config.getString("type")
+				+ "_groups." + id);
+		this.log.info("[NuxBridge] " + player + "'s group is " + group);
+		this.serv.dispatchCommand(this.serv.getConsoleSender(), "pex user "
+				+ player + " group set " + group);
+		this.log.info("[NuxBridge] " + player
+				+ " was succesfully added in group " + group);
+
+	}
+
+	public void logdebug(String msg) {
+		log.info(msg);
 	}
 }
